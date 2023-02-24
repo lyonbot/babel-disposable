@@ -27,12 +27,18 @@ function takeProperty(node, propName) {
   }
 
   if (t.isArrayExpression(node)) {
+    if (propName === 'length') {
+      if (node.elements.some(x => t.isSpreadElement(x))) return // can't directly compute the length
+      return t.numericLiteral(node.elements.length)
+    }
+
     propName = +propName
-    for (let i = 0; i < node.elements; i++) {
+    for (let i = 0; i < node.elements.length; i++) {
       let el = node.elements[i]
-      if (t.isSpreadElement(el)) return;
+      if (t.isSpreadElement(el)) return; // unsupported referencing: some rest element inside
       if (i === propName) return addDisposableTag(el)
     }
+    return t.unaryExpression('void', t.numericLiteral(0))
   }
 }
 
@@ -98,7 +104,24 @@ export const disposableObject = {
                 path = path.parentPath
               }
 
-              path.replaceWith(t.cloneDeepWithoutLoc(replaceWith))
+              [path] = path.replaceWith(t.cloneDeepWithoutLoc(replaceWith))
+
+              // ----------------------------------------------------------------
+              // special optimize!
+
+              if (path.parentPath.isSpreadElement()) {
+                // [1,2, ...disposedArray] => [1,2,3,4]
+                if (path.isArrayExpression() && path.parentPath.parentPath.isArrayExpression()) {
+                  path.parentPath.replaceWithMultiple(path.node.elements)
+                }
+
+                // {a,b, ...disposedObj} => {b,a,d}
+                if (path.isObjectExpression() && path.parentPath.parentPath.isObjectExpression()) {
+                  path.parentPath.replaceWithMultiple(path.node.properties)
+                  // TODO: erase duplicated keys
+                }
+                return
+              }
             })
             // } else {
             //   // not referenced. maybe keep this declarat
@@ -135,7 +158,7 @@ export const disposableObject = {
               if (!fromPropertyId) throw new Error('no fromPropertyId')
 
               let subSource = takeProperty(source, fromPropertyId)
-              if (defaultExpr) subSource = t.logicalExpression('||', subSource, defaultExpr)
+              if (defaultExpr) subSource = subSource ? t.logicalExpression('||', subSource, defaultExpr) : defaultExpr
               queue.push([toProperty, subSource])
 
               propertiesForRest = propertiesForRest.filter(x => identifierToValue(x.key) !== fromPropertyId)
@@ -153,7 +176,7 @@ export const disposableObject = {
           if (!t.isArrayExpression(source)) throw new Error('Must be an array expression')
           let metSpreadElementInSource = -1
           for (let i = 0; i < id.elements.length; i++) {
-            const srcItem = i < source.elements.length ? addDisposableTag(source.elements[i]) : t.unaryExpression('void', t.numericLiteral(0))
+            const srcItem = addDisposableTag(source.elements[i]) || t.unaryExpression('void', t.numericLiteral(0))
             if (t.isSpreadElement(srcItem)) metSpreadElementInSource = i
 
             const el = id.elements[i]
@@ -194,7 +217,9 @@ export const disposableObject = {
       const propName = identifierToValue(path.node.property)
       if (!isDisposableSource(obj)) return
       if (!propName) return
-      path.replaceWith(takeProperty(obj, propName))
+
+      const newNode = takeProperty(obj, propName)
+      if (newNode) path.replaceWith(newNode)
     }
   }
 }

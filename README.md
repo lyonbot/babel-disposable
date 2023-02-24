@@ -16,6 +16,7 @@ function test() {
 
   // ---------------------------------
 
+  printRestFieldIds(["age", "tel"]);
   printRestFields(
     /*#__DISPOSE__*/ {
       age: { type: "number" },
@@ -26,7 +27,7 @@ function test() {
   // ---------------------------------
 
   log("[name] type: string");
-  log("[name] title: undefined");
+  log("[name] title: name");
   log("[age]:", /*#__DISPOSE__*/ { type: "number" });
   return h("textInput");
 }
@@ -59,12 +60,13 @@ function test() {
   const source1$schema = secretSchema;
 
   const { name: $nameField, ...restFields } = source1$schema.fields;
+  printRestFieldIds(Object.keys(restFields));
   printRestFields(restFields);
 
   // ---------------------------------
 
   log("[name] type: " + $nameField.type);
-  log("[name] title: " + $nameField.title || "name");
+  log("[name] title: " + ($nameField.title || "name"));
   log("[age]:", source1$schema.fields.age);
 
   return $nameField.type === "string" // render component based on schema type

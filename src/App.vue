@@ -28,12 +28,13 @@ function test() {
   const source1$schema = secretSchema;
 
   const { name: $nameField, ...restFields } = source1$schema.fields;
+  printRestFieldIds(Object.keys(restFields));
   printRestFields(restFields);
 
   // ---------------------------------
 
   log('[name] type: ' + $nameField.type);
-  log('[name] title: ' + $nameField.title || "name");
+  log('[name] title: ' + ($nameField.title || "name"));
   log('[age]:', source1$schema.fields.age);
 
   return $nameField.type === "string" // render component based on schema type
