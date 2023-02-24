@@ -25,9 +25,9 @@ function test() {
 
   // ---------------------------------
 
-  effect("string");
-  effect("name");
-  effect(/*#__DISPOSE__*/ { type: "number" });
+  log("[name] type: string");
+  log("[name] title: undefined");
+  log("[age]:", /*#__DISPOSE__*/ { type: "number" });
   return h("textInput");
 }
 ```
@@ -63,9 +63,9 @@ function test() {
 
   // ---------------------------------
 
-  effect($nameField.type);
-  effect($nameField.title || "name");
-  effect(source1$schema.fields.age);
+  log("[name] type: " + $nameField.type);
+  log("[name] title: " + $nameField.title || "name");
+  log("[age]:", source1$schema.fields.age);
 
   return $nameField.type === "string" // render component based on schema type
     ? h("textInput")
