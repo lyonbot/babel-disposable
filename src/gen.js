@@ -1,4 +1,4 @@
-// import { run } from '@babel/core/lib/transformation';
+// Import { run } from '@babel/core/lib/transformation';
 import { transformSync } from '@babel/core';
 import constantFolding from 'babel-plugin-minify-constant-folding';
 import deadCode from 'babel-plugin-minify-dead-code-elimination';
@@ -15,7 +15,7 @@ export function gen(code) {
     [bakeObjectKeys],
   ];
 
-  console.clear()
+  console.clear();
   const resp = transformSync(code, { plugins });
 
   return resp.code;

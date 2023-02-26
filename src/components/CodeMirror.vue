@@ -2,26 +2,26 @@
   <div ref="domEl" style="text-align: left"></div>
 </template>
 
-<script setup lang="ts">
-import * as CodeMirror from 'codemirror';
-import 'codemirror/mode/javascript/javascript';
-import 'codemirror/lib/codemirror.css';
+<script setup>
+import * as CodeMirror from "codemirror";
+import "codemirror/mode/javascript/javascript";
+import "codemirror/lib/codemirror.css";
 
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch } from "vue";
 
-const props = defineProps<{ code: string }>();
-const emit = defineEmits(['update:code']);
+const props = defineProps({
+  code: String,
+});
+const emit = defineEmits(["update:code"]);
 
-const domEl = ref<HTMLDivElement>();
-
-let view;
+const domEl = ref();
 
 onMounted(() => {
   // Create an editor instance from a textarea element
-  var editor = CodeMirror(domEl.value, {
+  const editor = CodeMirror(domEl.value, {
     value: props.code,
     lineNumbers: true,
-    mode: 'javascript',
+    mode: "javascript",
   });
 
   watch(
@@ -31,9 +31,9 @@ onMounted(() => {
     }
   );
 
-  editor.on('changes', () => {
+  editor.on("changes", () => {
     const val = editor.getValue();
-    if (val !== props.code) emit('update:code', val);
+    if (val !== props.code) emit("update:code", val);
   });
 });
 </script>
