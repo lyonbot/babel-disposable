@@ -70,7 +70,7 @@ export function objectKeys(node) {
   if (t.isObjectExpression(node)) {
     for (const prop of node.properties) {
       if (t.isSpreadElement(prop)) return;
-      const id = identifierToValue(prop.node.key);
+      const id = identifierToValue(prop.key);
       if (!id) return;
 
       ans.push(id);

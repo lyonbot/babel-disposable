@@ -11,7 +11,7 @@ const markDisposable = Symbol('__DISPOSE__');
  * @param {T} node
  * @returns {T}
  */
-function addDisposableTag(node) {
+export function addDisposableTag(node) {
   if (!node || node[markDisposable]) return node;
 
   if (t.isLiteral(node)) {
@@ -35,7 +35,7 @@ function addDisposableTag(node) {
 /**
  * @returns {node is t.ObjectExpression | t.ArrayExpression | t.Literal}
  */
-function isDisposableSource(node) {
+export function isDisposableSource(node) {
   if (!node) return false;
   if (node[markDisposable]) return true;
   if (!last(node.leadingComments)?.value.includes(COMMENT_DISPOSABLE_MARK)) return false; // not disposable object
@@ -196,7 +196,14 @@ export const disposableObject = {
 
         // ----------[array]------------
         if (t.isArrayPattern(id)) {
-          if (!t.isArrayExpression(source)) throw new Error('Must be an array expression');
+          if (!t.isArrayExpression(source)) {
+            if (topLevel) throw new Error('Must be an array expression');
+
+            // cannot handle the RVal
+            newDeclaratorList.push(t.variableDeclarator(id, source));
+            return;
+          }
+
           let metSpreadElementInSource = -1;
           for (let i = 0; i < id.elements.length; i++) {
             const srcItem = addDisposableTag(source.elements[i]) || t.unaryExpression('void', t.numericLiteral(0));

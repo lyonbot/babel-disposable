@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import CodeMirror from "./components/CodeMirror.vue";
-import { computed, ref, watch } from "vue";
-import { gen } from "./gen";
+import CodeMirror from './components/CodeMirror.vue';
+import { computed, ref, watch } from 'vue';
+import { gen } from './gen';
 
 let defaultCode = `
 const secretSchema = /* #__DISPOSE__ */ {
@@ -45,14 +45,14 @@ function test() {
 }
 `;
 
-let code = ref(localStorage.getItem("lastCode") || defaultCode);
-let minifiedCode = computed(() => gen(code.value));
+let code = ref(localStorage.getItem('lastCode') || defaultCode);
+let minifiedCode = computed(() => gen(code.value) || '');
 watch(code, () => {
-  localStorage.setItem("lastCode", code.value);
+  localStorage.setItem('lastCode', code.value);
 });
 
 const reset = () => {
-  localStorage.removeItem("lastCode");
+  localStorage.removeItem('lastCode');
   code.value = defaultCode;
 };
 </script>

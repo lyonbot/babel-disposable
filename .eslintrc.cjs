@@ -4,11 +4,16 @@ module.exports = {
     es2021: true
   },
   extends: [
-    'plugin:vue/vue3-essential',
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended'
   ],
   overrides: [
+    {
+      files: ['*.vue'],
+      extends: [
+        'plugin:vue/vue3-essential',
+      ]
+    }
   ],
   parser: '@typescript-eslint/parser',
   parserOptions: {

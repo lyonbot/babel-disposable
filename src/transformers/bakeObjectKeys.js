@@ -1,4 +1,5 @@
 import * as t from '@babel/types';
+import { addDisposableTag } from './disposableObject';
 import { identifierToValue, objectKeys } from './utils';
 
 /** @type {import('@babel/core').PluginItem} */
@@ -7,16 +8,22 @@ export const bakeObjectKeys = {
     CallExpression(path) {
       const arg = path.get('arguments')[0];
       if (path.node.arguments.length !== 1) return;
+      if (!(arg.isObjectExpression() || arg.isArrayExpression())) return;
 
       if (!t.matchesPattern(path.node.callee, ['Object', 'keys'])) return;
       if (path.scope.getBinding('Object')) return;
 
+      // ------------------------------------------------
+      // now Object.keys(...) get an ObjectExpression or ArrayExpression
+
       const keys = objectKeys(arg.node);
       if (keys) {
-        path.replaceWith(t.arrayExpression(Array.from(keys, str => t.stringLiteral(str))));
+        let newArray = addDisposableTag(t.arrayExpression(Array.from(keys, str => t.stringLiteral(str))));
+        path.replaceWith(newArray);
         return;
       }
 
+      // ------------------------------------------------
       // failed to process!
       // not processable, but we can remove the meanless "property values" / "element values"
       // by replacing all values to number "1"

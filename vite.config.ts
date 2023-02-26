@@ -7,17 +7,14 @@ export default defineConfig({
   resolve: {
     alias: {
       path: 'path-posix',
-      '@babel/core/lib/config/files/index.js':
-        '@babel/core/lib/config/files/index-browser.js',
-      '@babel/core/lib/config/resolve-targets.js':
-        '@babel/core/lib/config/resolve-targets-browser.js',
-      '@babel/core/lib/transform-file.js':
-        '@babel/core/lib/transform-file-browser.js',
+      '@babel/core/lib/config/files/index.js': '@babel/core/lib/config/files/index-browser.js',
+      '@babel/core/lib/config/resolve-targets.js': '@babel/core/lib/config/resolve-targets-browser.js',
+      '@babel/core/lib/transform-file.js': '@babel/core/lib/transform-file-browser.js',
     },
   },
   define: {
     'process.cwd': '(()=>"/")',
     'process.env': '({})',
-    'Buffer.isBuffer': 'x=>window.Buffer.isBuffer(x)'
+    'Buffer.isBuffer': 'window.Buffer?.isBuffer',  // jsesc
   },
 });
