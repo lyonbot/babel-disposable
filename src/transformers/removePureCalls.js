@@ -1,3 +1,4 @@
+import * as t from '@babel/types';
 import { last } from './utils';
 
 const remove = path => {
@@ -18,6 +19,11 @@ export const removePureCalls = {
 
       // case 2: a single line invoking
       if ((path = path.parentPath).isExpressionStatement() && remove(path)) return;
+    },
+
+    TemplateLiteral(path) {
+      const evalResult = path.evaluate();
+      if (evalResult.confident) path.replaceWith(t.stringLiteral(evalResult.value));
     },
   },
 };

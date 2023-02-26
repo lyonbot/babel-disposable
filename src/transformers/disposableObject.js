@@ -1,7 +1,5 @@
 import * as t from '@babel/types';
-import {
-  last, identifierToValue, takeProperty, isFalsyNode,
-} from './utils';
+import { last, identifierToValue, takeProperty, isFalsyNode } from './utils';
 
 const COMMENT_DISPOSABLE_MARK = '#__DISPOSE__';
 const markDisposable = Symbol('__DISPOSE__');
@@ -86,9 +84,16 @@ export const disposableObject = {
             // is referenced. replace all occurs, and the owning MemberExpression
             binding.referencePaths.forEach((path) => {
               let replaceWith = source;
-              while (path.parentPath.isMemberExpression()) {
-                const propName = identifierToValue(path.parent.property);
-                if (propName === undefined) break;
+              while (path.parentPath.isMemberExpression() && path.parent.object === path.node) {
+                // note: this logic is a duplication of following "ObjectExpression|ArrayExpression" visitor
+                // do the member-replacing here, will create less Nodes, increasing the speed.
+
+                let prop = path.parentPath.get('property');
+                let propName;
+
+                if (path.parentPath.node.computed) propName = prop.evaluate().value;
+                else if (prop.isIdentifier()) propName = prop.node.name;
+                if (propName == undefined) break;
 
                 const nextReplaceWith = takeProperty(replaceWith, propName);
                 if (!nextReplaceWith) break; // property not supported
@@ -166,15 +171,20 @@ export const disposableObject = {
             }
 
             if (t.isRestElement(property)) {
-              // the { ...rest }
+              // let { foo, ...rest } = {foo,bar,baz}
+              // -- turn into `let rest = {bar,baz}`
               const propertiesForRest = [];
               if (t.isObjectExpression(source)) {
                 source.properties.forEach((prop) => {
-                  if (t.isSpreadProperty(prop) || !takenKeys.has(identifierToValue(prop.key))) {
+                  if (t.isSpreadElement(prop) || !takenKeys.has(identifierToValue(prop.key))) {
                     propertiesForRest.push(prop);
                   }
                 });
               } else if (t.isArrayExpression(source)) {
+                // workaround for 
+                //  let { 0: _, ...rest } = [1,2,3]
+                // -- turn into  `let rest = { '1': 2, '2': 3 }`
+                // -- but not works when the array contains spreadElement
                 for (let i = 0; i < source.elements.length; i++) {
                   const el = source.elements[i];
                   if (!el) continue; // empty slot
@@ -243,18 +253,29 @@ export const disposableObject = {
 
       scope.crawl(); // rebuild binding infos because some declarators are removed or updated.
     },
-    MemberExpression(path) {
+    /** @param {import('@babel/core').NodePath<t.ObjectExpression | t.ArrayExpression>} path */
+    'ObjectExpression|ArrayExpression'(path) {
       // usually this is already processed. but due to other plugins, we might meet code like:
       // log(/*#__DISPOSE__*/{ a: 1, b: 2 }[true ? 'b' : 'a'])
       // log(/*#__DISPOSE__*/{ a: 1, b: 2 }['b'])
 
-      const obj = path.node.object;
-      const propName = identifierToValue(path.node.property);
-      if (!isDisposableSource(obj)) return;
-      if (propName === undefined) return;
+      if (!isDisposableSource(path.node)) return;
+      const obj = path.node;
+      const parentPath = path.parentPath;
 
-      const newNode = takeProperty(obj, propName);
-      if (newNode) path.replaceWith(addDisposableTag(newNode));
+      if (parentPath.isMemberExpression() && parentPath.node.object === obj) {
+        let prop = parentPath.get('property');
+        let propName;
+
+        if (parentPath.node.computed) propName = prop.evaluate().value;
+        else if (prop.isIdentifier()) propName = prop.node.name;
+        if (propName == undefined) return;
+
+        const newNode = takeProperty(obj, propName);
+        if (newNode) parentPath.replaceWith(addDisposableTag(newNode));
+
+        return;
+      }
     },
   },
 };
