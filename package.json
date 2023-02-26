@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@babel/core": "^7.21.0",
+    "@babel/generator": "^7.21.1",
     "@babel/helper-module-imports": "^7.18.6",
     "@babel/traverse": "^7.21.2",
     "@babel/types": "^7.21.2",

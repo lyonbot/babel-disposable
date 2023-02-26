@@ -1,5 +1,5 @@
 import * as t from '@babel/types';
-import { last } from './utils';
+import { isFalsyNode, last } from './utils';
 
 const remove = path => {
   const comment = last(path.node.leadingComments);
@@ -24,6 +24,13 @@ export const removePureCalls = {
     TemplateLiteral(path) {
       const evalResult = path.evaluate();
       if (evalResult.confident) path.replaceWith(t.stringLiteral(evalResult.value));
+    },
+
+    MemberExpression(path) {
+      // turn `undefined?.xxx` into `undefined`
+      if (isFalsyNode(path.node.object) && path.node.optional) {
+        path.replaceWith(t.unaryExpression('void', t.numericLiteral(0)));
+      }
     },
   },
 };

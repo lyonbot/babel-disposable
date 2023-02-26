@@ -37,7 +37,7 @@ export function isDisposableSource(node) {
   if (!node) return false;
   if (node[markDisposable]) return true;
   if (!last(node.leadingComments)?.value.includes(COMMENT_DISPOSABLE_MARK)) return false; // not disposable object
-  if (!(t.isObjectExpression(node) || t.isArrayExpression(node) || t.isLiteral(node))) return false;
+  if (!(t.isObjectExpression(node) || t.isArrayExpression(node) || t.isLiteral(node) || t.isFalsyNode(node))) return false;
 
   node[markDisposable] = true;
   return true;
