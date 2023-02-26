@@ -37,11 +37,11 @@ function test() {
   log('[name] title: ' + ($nameField.title || "name"));
   log('[age]:', source1$schema.fields.age);
 
-  return $nameField.type === "string" // render component based on schema type
-    ? h("textInput")
-    : $nameField.type === "number"
-    ? h("numberInput")
-    : null;
+  // ----------------------------------
+  
+  const type = $nameField.type;
+  if (type === 'string') return h('textInput');
+  if (type === 'number') return h('numberInput');
 }
 `;
 
