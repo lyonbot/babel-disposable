@@ -1,5 +1,8 @@
 import * as t from '@babel/types';
 
+// import generate from '@babel/generator';
+// export { generate };
+
 /**
  * @param {import('@babel/core').NodePath} path 
  */
@@ -40,7 +43,7 @@ export const identifierToValue = (node) => {
  * @param {string | number} propName
  * @returns {t.RVal | undefined} `undefined` if not supported.
  */
-export function takeProperty(node, propName) {
+export function takeProperty(node, propName, isOptionalMemberExpression = false) {
   if (t.isObjectExpression(node)) {
     propName = String(propName);
     const prop = node.properties.find(it => t.isObjectMember(it) && identifierToValue(it.key) === propName);
@@ -72,6 +75,10 @@ export function takeProperty(node, propName) {
       }
       return t.unaryExpression('void', t.numericLiteral(0));
     }
+  }
+
+  if (isOptionalMemberExpression && node && isFalsyNode(node)) {
+    return t.unaryExpression('void', t.numericLiteral(0));
   }
 }
 

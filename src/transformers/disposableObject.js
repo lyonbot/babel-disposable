@@ -12,7 +12,7 @@ const markDisposable = Symbol('__DISPOSE__');
 export function addDisposableTag(node) {
   if (!node || node[markDisposable]) return node;
 
-  if (t.isLiteral(node)) {
+  if (t.isLiteral(node) || isFalsyNode(node)) {
     // do not make too many comments
     node[markDisposable] = true;
   }
@@ -84,7 +84,10 @@ export const disposableObject = {
             // is referenced. replace all occurs, and the owning MemberExpression
             binding.referencePaths.forEach((path) => {
               let replaceWith = source;
-              while (path.parentPath.isMemberExpression() && path.parent.object === path.node) {
+              while (
+                (path.parentPath.isMemberExpression() || path.parentPath.isOptionalMemberExpression()) &&
+                path.parent.object === path.node
+              ) {
                 // note: this logic is a duplication of following "ObjectExpression|ArrayExpression" visitor
                 // do the member-replacing here, will create less Nodes, increasing the speed.
 
@@ -95,7 +98,7 @@ export const disposableObject = {
                 else if (prop.isIdentifier()) propName = prop.node.name;
                 if (propName == undefined) break;
 
-                const nextReplaceWith = takeProperty(replaceWith, propName);
+                const nextReplaceWith = takeProperty(replaceWith, propName, path.parentPath.node.optional);
                 if (!nextReplaceWith) break; // property not supported
 
                 replaceWith = nextReplaceWith;
@@ -253,7 +256,10 @@ export const disposableObject = {
 
       scope.crawl(); // rebuild binding infos because some declarators are removed or updated.
     },
-    /** @param {import('@babel/core').NodePath<t.ObjectExpression | t.ArrayExpression>} path */
+
+    /**
+     * @param {import('@babel/core').NodePath<t.ObjectExpression | t.ArrayExpression>} path
+     */
     'ObjectExpression|ArrayExpression'(path) {
       // usually this is already processed. but due to other plugins, we might meet code like:
       // log(/*#__DISPOSE__*/{ a: 1, b: 2 }[true ? 'b' : 'a'])
@@ -263,7 +269,10 @@ export const disposableObject = {
       const obj = path.node;
       const parentPath = path.parentPath;
 
-      if (parentPath.isMemberExpression() && parentPath.node.object === obj) {
+      if (
+        (parentPath.isMemberExpression() || parentPath.isOptionalMemberExpression())
+        && parentPath.node.object === obj
+      ) {
         let prop = parentPath.get('property');
         let propName;
 

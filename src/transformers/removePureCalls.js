@@ -26,7 +26,7 @@ export const removePureCalls = {
       if (evalResult.confident) path.replaceWith(t.stringLiteral(evalResult.value));
     },
 
-    MemberExpression(path) {
+    'MemberExpression|OptionalMemberExpression'(path) {
       // turn `undefined?.xxx` into `undefined`
       if (isFalsyNode(path.node.object) && path.node.optional) {
         path.replaceWith(t.unaryExpression('void', t.numericLiteral(0)));
