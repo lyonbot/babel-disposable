@@ -5,6 +5,8 @@ import deadCode from 'babel-plugin-minify-dead-code-elimination';
 import { removePureCalls } from './transformers/removePureCalls';
 import { disposableObject } from './transformers/disposableObject';
 import { bakeObjectKeys } from './transformers/bakeObjectKeys';
+import { disposableFunction } from './transformers/disposableFunction';
+import { simplifyIIFE } from './transformers/simplifyIIFE';
 
 export function gen(code) {
   const plugins = [
@@ -12,7 +14,9 @@ export function gen(code) {
     [deadCode],
     [removePureCalls],
     [disposableObject],
+    [disposableFunction],
     [bakeObjectKeys],
+    [simplifyIIFE],
   ];
 
   console.clear();

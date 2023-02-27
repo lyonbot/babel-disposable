@@ -1,13 +1,13 @@
 import { NodePath } from '@babel/traverse';
 import * as t from '@babel/types';
-import { getReplacementOnOuterMemberExpression, isDisposableSource, addDisposableTag } from './utils/disposable';
+import { COMMENT_DISPOSED_FUNCTION, getReplacementOnOuterMemberExpression, isDisposableValue, markAsDisposableValue } from './utils/disposable';
 import { identifierToValue, takeProperty, isFalsyNode } from './utils/misc';
 
 /** @type {import('@babel/core').PluginItem} */
 export const disposableObject = {
   visitor: {
     VariableDeclarator(rootPath) {
-      if (!isDisposableSource(rootPath.node.init)) return;
+      if (!isDisposableValue(rootPath.node.init)) return;
 
       const { scope } = rootPath;
       const newDeclaratorList = [];
@@ -43,7 +43,7 @@ export const disposableObject = {
             // is referenced. replace all occurs, and the owning MemberExpression
             binding.referencePaths.forEach((path) => {
               const hoisted = getReplacementOnOuterMemberExpression(path, source);
-              [path] = hoisted.path.replaceWith(addDisposableTag(t.cloneDeepWithoutLoc(hoisted.replaceWith)));
+              [path] = hoisted.path.replaceWith(markAsDisposableValue(t.cloneDeepWithoutLoc(hoisted.replaceWith)));
 
               // ----------------------------------------------------------------
               // special optimize!
@@ -107,7 +107,7 @@ export const disposableObject = {
                 : identifierToValue(fromProperty.node); // is Identifier
               if (fromPropertyId === undefined) throw new Error('no fromPropertyId');
 
-              let subSource = addDisposableTag(takeProperty(source, fromPropertyId));
+              let subSource = markAsDisposableValue(takeProperty(source, fromPropertyId));
               if (defaultExpr) subSource = isFalsyNode(subSource) ? defaultExpr : subSource;
               if (!subSource) throw new Error('failed to destruct field: ' + fromPropertyId);
               diveInto(toProperty, subSource);
@@ -142,7 +142,7 @@ export const disposableObject = {
                 }
               }
 
-              diveInto(property.get('argument'), addDisposableTag(t.objectExpression(propertiesForRest)));
+              diveInto(property.get('argument'), markAsDisposableValue(t.objectExpression(propertiesForRest)));
             }
           });
 
@@ -162,7 +162,7 @@ export const disposableObject = {
           let metSpreadElementInSource = -1;
           let elements = id.get('elements');
           for (let i = 0; i < elements.length; i++) {
-            const srcItem = addDisposableTag(source.elements[i]) || t.unaryExpression('void', t.numericLiteral(0));
+            const srcItem = markAsDisposableValue(source.elements[i]) || t.unaryExpression('void', t.numericLiteral(0));
             if (t.isSpreadElement(srcItem)) metSpreadElementInSource = i;
 
             const el = elements[i];
@@ -170,7 +170,7 @@ export const disposableObject = {
 
             if (el.isRestElement() && (metSpreadElementInSource === -1 || metSpreadElementInSource === i)) {
               // const [...rest]
-              diveInto(el.get('argument'), addDisposableTag(t.arrayExpression(source.elements.slice(i))));
+              diveInto(el.get('argument'), markAsDisposableValue(t.arrayExpression(source.elements.slice(i))));
               break;
             }
 
@@ -198,6 +198,11 @@ export const disposableObject = {
       else rootPath.remove();
 
       scope.crawl(); // rebuild binding infos because some declarators are removed or updated.
+
+      // revisit AST of affected scope blocks,
+      // because we might eliminated some variables,
+      // then other plugins will optimize the output
+      scope.path?.visit();
     },
 
     /**
@@ -209,9 +214,14 @@ export const disposableObject = {
       // log(/*#__DISPOSE_[id]*/{ xxxx: 2 yyyy   // 
       // log(/*#__DISPOSE__*/{ a: 1, b: 2 }['b'])
 
-      if (!isDisposableSource(path.node)) return;
+      if (!isDisposableValue(path.node)) return;
       const hoisted = getReplacementOnOuterMemberExpression(path, path.node);
-      if (hoisted.path !== path) hoisted.path.replaceWith(addDisposableTag(hoisted.replaceWith));
+      if (hoisted.path !== path) {
+        [path] = hoisted.path.replaceWith(markAsDisposableValue(hoisted.replaceWith));
+        path
+          .findParent(p => p.node?.leadingComments?.some(x => x.value.includes(COMMENT_DISPOSED_FUNCTION)))
+          ?.visit();
+      }
     },
   },
 };

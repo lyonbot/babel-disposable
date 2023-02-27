@@ -2,15 +2,22 @@ import { NodePath } from '@babel/traverse';
 import * as t from '@babel/types';
 import { last, isFalsyNode, takeProperty } from './misc';
 
-const COMMENT_DISPOSABLE_MARK = '#__DISPOSE__';
+export const COMMENT_DISPOSABLE_MARK = '#__DISPOSE__';
+export const COMMENT_DISPOSED_FUNCTION = '#__DISPOSED__FUNCTION__';
 const markDisposable = Symbol('__DISPOSE__');
 
+export function nodeHasDisposableComment(node) {
+  return !!last(node?.leadingComments)?.value.includes(COMMENT_DISPOSABLE_MARK);
+}
+
 /**
+ * if the input is a Value Node, mark it as disposable
+ * 
  * @template T
  * @param {T} node
  * @returns {T}
  */
-export function addDisposableTag(node) {
+export function markAsDisposableValue(node) {
   if (!node || node[markDisposable])
     return node;
 
@@ -22,7 +29,7 @@ export function addDisposableTag(node) {
   if (t.isObjectExpression(node) || t.isArrayExpression(node)) {
     // NOTE: babel cloneNode will discard [markDisposable]
     // so we shall avoid adding duplicated comment marker
-    if (!last(node.leadingComments)?.value.includes(COMMENT_DISPOSABLE_MARK)) {
+    if (!nodeHasDisposableComment(node)) {
       node = t.addComment(node, 'leading', COMMENT_DISPOSABLE_MARK);
     }
 
@@ -35,17 +42,33 @@ export function addDisposableTag(node) {
 /**
  * @returns {node is t.ObjectExpression | t.ArrayExpression | t.Literal}
  */
-export function isDisposableSource(node) {
+export function isDisposableValue(node) {
   if (!node)
     return false;
   if (node[markDisposable])
     return true;
-  if (!last(node.leadingComments)?.value.includes(COMMENT_DISPOSABLE_MARK))
+  if (!nodeHasDisposableComment(node))
     return false; // not disposable object
   if (!(t.isObjectExpression(node) || t.isArrayExpression(node) || t.isLiteral(node) || t.isFalsyNode(node)))
     return false;
 
   node[markDisposable] = true;
+  return true;
+}
+
+/**
+ * @param {NodePath<t.Function>} path
+ */
+export function isDisposableFunction(path) {
+  if (!path?.isFunction()) return false;
+  if (path.node[markDisposable]) return true;
+
+  let hasComment = nodeHasDisposableComment(path.node) ||
+    (path.parentPath?.isExportDeclaration() && nodeHasDisposableComment(path.parent)) ||
+    (path.parentPath?.parentPath?.isVariableDeclaration() && nodeHasDisposableComment(path.parentPath.parent));
+  if (!hasComment) return false;
+
+  path.node[markDisposable] = true;
   return true;
 }
 

@@ -4,22 +4,6 @@ import * as t from '@babel/types';
 // export { generate };
 
 /**
- * @param {import('@babel/core').NodePath} path 
- */
-export function getLeadingComments(path) {
-  const start = path.node.start;
-  const comments = path.node.leadingComments?.slice() || [];
-
-  if (typeof start === 'number') {
-    while ((path = path.parentPath) && path.node.start === start) {
-      comments.unshift(path.node.leadingComments || []);
-    }
-  }
-
-  return comments;
-}
-
-/**
  * @template T
  * @param {T[] | null | undefined} val
  * @returns {T | undefined}

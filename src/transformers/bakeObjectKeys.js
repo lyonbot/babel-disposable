@@ -1,5 +1,5 @@
 import * as t from '@babel/types';
-import { addDisposableTag } from './utils/disposable';
+import { markAsDisposableValue } from './utils/disposable';
 import { identifierToValue, objectKeys } from './utils/misc';
 
 /** @type {import('@babel/core').PluginItem} */
@@ -18,7 +18,7 @@ export const bakeObjectKeys = {
 
       const keys = objectKeys(arg.node);
       if (keys) {
-        let newArray = addDisposableTag(t.arrayExpression(Array.from(keys, str => t.stringLiteral(str))));
+        let newArray = markAsDisposableValue(t.arrayExpression(Array.from(keys, str => t.stringLiteral(str))));
         path.replaceWith(newArray);
         return;
       }

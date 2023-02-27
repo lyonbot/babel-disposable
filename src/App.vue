@@ -38,10 +38,15 @@ function test() {
   log('[age]:', source1$schema.fields.age);
 
   // ----------------------------------
-  
-  const type = $nameField.type;
-  if (type === 'string') return h('textInput');
-  if (type === 'number') return h('numberInput');
+
+  return renderInput($nameField.type, { title: ($nameField.title || "name") })
+}
+
+
+/*#__DISPOSE__*/
+function renderInput(type, props = {}) {
+  if (type === 'string') return h('textInput', props);
+  if (type === 'number') return h('numberInput', props);
 }
 `;
 
