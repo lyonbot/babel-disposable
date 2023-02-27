@@ -1,6 +1,6 @@
 import * as t from '@babel/types';
-import { addDisposableTag } from './disposableObject';
-import { identifierToValue, objectKeys } from './utils';
+import { addDisposableTag } from './utils/disposable';
+import { identifierToValue, objectKeys } from './utils/misc';
 
 /** @type {import('@babel/core').PluginItem} */
 export const bakeObjectKeys = {

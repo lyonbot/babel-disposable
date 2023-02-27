@@ -39,9 +39,9 @@ export const identifierToValue = (node) => {
 };
 
 /**
- * @param {t.ObjectExpression | t.ArrayExpression} node
+ * @param {t.ObjectExpression | t.ArrayExpression | t.NullLiteral | t.UnaryExpression | t.Identifier} node
  * @param {string | number} propName
- * @returns {t.RVal | undefined} `undefined` if not supported.
+ * @returns {t.RVal | undefined} `undefined` if failed to extract
  */
 export function takeProperty(node, propName, isOptionalMemberExpression = false) {
   if (t.isObjectExpression(node)) {
@@ -117,7 +117,8 @@ export function objectKeys(node) {
 
 /**
  * check if `node` is nullish, or whether it is a node but presents `null | undefined`
- * @param {*} node
+ * @param {any} node
+ * @returns {node is t.NullLiteral | t.UnaryExpression | t.Identifier | undefined | null}
  */
 export function isFalsyNode(node) {
   if (!node) return true;

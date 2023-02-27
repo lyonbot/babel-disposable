@@ -1,47 +1,7 @@
+import { NodePath } from '@babel/traverse';
 import * as t from '@babel/types';
-import { last, identifierToValue, takeProperty, isFalsyNode } from './utils';
-
-const COMMENT_DISPOSABLE_MARK = '#__DISPOSE__';
-const markDisposable = Symbol('__DISPOSE__');
-
-/**
- * @template T
- * @param {T} node
- * @returns {T}
- */
-export function addDisposableTag(node) {
-  if (!node || node[markDisposable]) return node;
-
-  if (t.isLiteral(node) || isFalsyNode(node)) {
-    // do not make too many comments
-    node[markDisposable] = true;
-  }
-
-  if (t.isObjectExpression(node) || t.isArrayExpression(node)) {
-    // NOTE: babel cloneNode will discard [markDisposable]
-    // so we shall avoid adding duplicated comment marker
-    if (!last(node.leadingComments)?.value.includes(COMMENT_DISPOSABLE_MARK)) {
-      node = t.addComment(node, 'leading', COMMENT_DISPOSABLE_MARK);
-    }
-
-    node[markDisposable] = true;
-  }
-
-  return node;
-}
-
-/**
- * @returns {node is t.ObjectExpression | t.ArrayExpression | t.Literal}
- */
-export function isDisposableSource(node) {
-  if (!node) return false;
-  if (node[markDisposable]) return true;
-  if (!last(node.leadingComments)?.value.includes(COMMENT_DISPOSABLE_MARK)) return false; // not disposable object
-  if (!(t.isObjectExpression(node) || t.isArrayExpression(node) || t.isLiteral(node) || t.isFalsyNode(node))) return false;
-
-  node[markDisposable] = true;
-  return true;
-}
+import { getReplacementOnOuterMemberExpression, isDisposableSource, addDisposableTag } from './utils/disposable';
+import { identifierToValue, takeProperty, isFalsyNode } from './utils/misc';
 
 /** @type {import('@babel/core').PluginItem} */
 export const disposableObject = {
@@ -52,30 +12,29 @@ export const disposableObject = {
       const { scope } = rootPath;
       const newDeclaratorList = [];
       let nothingChanges = false;
-      diveInto(rootPath.node.id, rootPath.node.init, true);
+      diveInto(rootPath.get('id'), rootPath.get('init').node, true);
 
       /**
        * use DFS method to handle dependency problems for `var {a:a1, b=a1, ...r} = ...`
        *
-       * @param {t.LVal} id
+       * @param {NodePath<t.LVal>} id
        * @param {t.Expression} source
        * @param {boolean} topLevel
        */
       function diveInto(id, source, topLevel) {
         // ----------[normal identifier]------------
-        if (t.isIdentifier(id)) {
+        if (id.isIdentifier()) {
           // const foo = #obj
           // simply replace all occurs
 
-          const binding = scope.getBinding(id.name);
-          // console.log('magical process binding :', id.name, binding)
+          const binding = scope.getBinding(id.node.name);
 
           if (!binding.constant) {
             // variable is changed. can't dispose the references
             // keep the declarator
 
             if (topLevel) nothingChanges = true;
-            else newDeclaratorList.push(t.variableDeclarator(id, source));
+            else newDeclaratorList.push(t.variableDeclarator(id.node, source));
 
             return;
           }
@@ -83,29 +42,8 @@ export const disposableObject = {
           if (binding.referenced) {
             // is referenced. replace all occurs, and the owning MemberExpression
             binding.referencePaths.forEach((path) => {
-              let replaceWith = source;
-              while (
-                (path.parentPath.isMemberExpression() || path.parentPath.isOptionalMemberExpression()) &&
-                path.parent.object === path.node
-              ) {
-                // note: this logic is a duplication of following "ObjectExpression|ArrayExpression" visitor
-                // do the member-replacing here, will create less Nodes, increasing the speed.
-
-                let prop = path.parentPath.get('property');
-                let propName;
-
-                if (path.parentPath.node.computed) propName = prop.evaluate().value;
-                else if (prop.isIdentifier()) propName = prop.node.name;
-                if (propName == undefined) break;
-
-                const nextReplaceWith = takeProperty(replaceWith, propName, path.parentPath.node.optional);
-                if (!nextReplaceWith) break; // property not supported
-
-                replaceWith = nextReplaceWith;
-                path = path.parentPath;
-              }
-
-              [path] = path.replaceWith(addDisposableTag(t.cloneDeepWithoutLoc(replaceWith)));
+              const hoisted = getReplacementOnOuterMemberExpression(path, source);
+              [path] = hoisted.path.replaceWith(addDisposableTag(t.cloneDeepWithoutLoc(hoisted.replaceWith)));
 
               // ----------------------------------------------------------------
               // special optimize!
@@ -132,48 +70,52 @@ export const disposableObject = {
         }
 
         // ----------[object]------------
-        if (t.isObjectPattern(id)) {
+        if (id.isObjectPattern()) {
           if (!t.isArrayExpression(source) && !t.isObjectExpression(source)) {
             if (topLevel) throw new Error('Cannot use destructing from a non-object');
 
             // handle `{ foo, bar } = defaultValue` that derived from `var { unexist: { foo, bar } = defaultValue } = {}`
-            newDeclaratorList.push(t.variableDeclarator(id, source));
+            newDeclaratorList.push(t.variableDeclarator(id.node, source));
             return;
           }
 
           const takenKeys = new Set();
-          id.properties.forEach((property) => {
-            if (t.isObjectProperty(property)) {
-              const fromProperty = property.key;
-              let toProperty = property.value; //
+          id.get('properties').forEach((property) => {
+            if (property.isObjectProperty()) {
+              const fromProperty = property.get('key');
+              let toProperty = property.get('value'); //
               let defaultExpr;
 
-              if (t.isAssignmentPattern(toProperty)) {
+              if (toProperty.isAssignmentPattern()) {
                 //  const { foo = 123 }
                 //  const { foo: bar = 123 }
                 //  const { foo: { x, y } = def }
-                defaultExpr = toProperty.right;
-                toProperty = toProperty.left;
+                defaultExpr = toProperty.get('right');
+                toProperty = toProperty.get('left');
               }
 
               // warn: `toProperty` could be a nested ObjectPattern or ArrayPattern
               //  const { foo: { x, y } }
               //  const { foo: { x, y } = def }
 
-              // also, fromProperty could be an integer.
+              // also, fromProperty could be an integer; an expression
               //  const { 0: firstEl, 1: secondEl } = ['a', 'b', 'c']
+              //  const { [id]: xxxx } = yyyy   // property.node.computed
 
-              const fromPropertyId = identifierToValue(fromProperty);
+              let fromPropertyId = property.node.computed
+                ? fromProperty.evaluate().value
+                : identifierToValue(fromProperty.node); // is Identifier
               if (fromPropertyId === undefined) throw new Error('no fromPropertyId');
 
               let subSource = addDisposableTag(takeProperty(source, fromPropertyId));
               if (defaultExpr) subSource = isFalsyNode(subSource) ? defaultExpr : subSource;
+              if (!subSource) throw new Error('failed to destruct field: ' + fromPropertyId);
               diveInto(toProperty, subSource);
 
-              takenKeys.add(fromPropertyId);
+              takenKeys.add(String(fromPropertyId));
             }
 
-            if (t.isRestElement(property)) {
+            if (property.isRestElement()) {
               // let { foo, ...rest } = {foo,bar,baz}
               // -- turn into `let rest = {bar,baz}`
               const propertiesForRest = [];
@@ -200,7 +142,7 @@ export const disposableObject = {
                 }
               }
 
-              diveInto(property.argument, addDisposableTag(t.objectExpression(propertiesForRest)));
+              diveInto(property.get('argument'), addDisposableTag(t.objectExpression(propertiesForRest)));
             }
           });
 
@@ -208,26 +150,27 @@ export const disposableObject = {
         }
 
         // ----------[array]------------
-        if (t.isArrayPattern(id)) {
+        if (id.isArrayPattern()) {
           if (!t.isArrayExpression(source)) {
             if (topLevel) throw new Error('Must be an array expression');
 
             // cannot handle the RVal
-            newDeclaratorList.push(t.variableDeclarator(id, source));
+            newDeclaratorList.push(t.variableDeclarator(id.node, source));
             return;
           }
 
           let metSpreadElementInSource = -1;
-          for (let i = 0; i < id.elements.length; i++) {
+          let elements = id.get('elements');
+          for (let i = 0; i < elements.length; i++) {
             const srcItem = addDisposableTag(source.elements[i]) || t.unaryExpression('void', t.numericLiteral(0));
             if (t.isSpreadElement(srcItem)) metSpreadElementInSource = i;
 
-            const el = id.elements[i];
-            if (!el) continue; // empty slot like const [,,,,it]
+            const el = elements[i];
+            if (!el.node) continue; // empty slot like const [,,,,it]
 
-            if (t.isRestElement(el) && (metSpreadElementInSource === -1 || metSpreadElementInSource === i)) {
+            if (el.isRestElement() && (metSpreadElementInSource === -1 || metSpreadElementInSource === i)) {
               // const [...rest]
-              diveInto(el.argument, addDisposableTag(t.arrayExpression(source.elements.slice(i))));
+              diveInto(el.get('argument'), addDisposableTag(t.arrayExpression(source.elements.slice(i))));
               break;
             }
 
@@ -235,15 +178,15 @@ export const disposableObject = {
               throw new Error('Currently not supported: taking a element from "restElement"');
             }
 
-            if (t.isIdentifier(el)) {
+            if (el.isIdentifier() || el.isObjectPattern() || el.isArrayPattern()) {
               // const [abc] =
               diveInto(el, srcItem);
             }
 
-            if (t.isAssignmentPattern(el)) {
+            if (el.isAssignmentPattern()) {
               // const [abc = 1234] =
-              const defaultExpr = el.right;
-              diveInto(el.left, isFalsyNode(srcItem) ? defaultExpr : srcItem);
+              const src = isFalsyNode(srcItem) ? el.node.right : srcItem;
+              diveInto(el.get('left'), src);
             }
           }
         }
@@ -263,28 +206,12 @@ export const disposableObject = {
     'ObjectExpression|ArrayExpression'(path) {
       // usually this is already processed. but due to other plugins, we might meet code like:
       // log(/*#__DISPOSE__*/{ a: 1, b: 2 }[true ? 'b' : 'a'])
+      // log(/*#__DISPOSE_[id]*/{ xxxx: 2 yyyy   // 
       // log(/*#__DISPOSE__*/{ a: 1, b: 2 }['b'])
 
       if (!isDisposableSource(path.node)) return;
-      const obj = path.node;
-      const parentPath = path.parentPath;
-
-      if (
-        (parentPath.isMemberExpression() || parentPath.isOptionalMemberExpression())
-        && parentPath.node.object === obj
-      ) {
-        let prop = parentPath.get('property');
-        let propName;
-
-        if (parentPath.node.computed) propName = prop.evaluate().value;
-        else if (prop.isIdentifier()) propName = prop.node.name;
-        if (propName == undefined) return;
-
-        const newNode = takeProperty(obj, propName);
-        if (newNode) parentPath.replaceWith(addDisposableTag(newNode));
-
-        return;
-      }
+      const hoisted = getReplacementOnOuterMemberExpression(path, path.node);
+      if (hoisted.path !== path) hoisted.path.replaceWith(addDisposableTag(hoisted.replaceWith));
     },
   },
 };
