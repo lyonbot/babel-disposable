@@ -1,7 +1,7 @@
 import { NodePath } from '@babel/traverse';
 import * as t from '@babel/types';
-import { COMMENT_DISPOSED_FUNCTION, getReplacementOnOuterMemberExpression, isDisposableValue, markAsDisposableValue } from './utils/disposable';
-import { identifierToValue, takeProperty, isFalsyNode } from './utils/misc';
+import { COMMENT_DISPOSED_FUNCTION, getReplacementOnOuterMemberExpression, isDisposableValue, markAsDisposableValue } from './utils/disposable.js';
+import { identifierToValue, takeProperty, isFalsyNode } from './utils/misc.js';
 
 /** @type {import('@babel/core').PluginItem} */
 export const disposableObject = {

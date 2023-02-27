@@ -1,6 +1,6 @@
 import { NodePath } from '@babel/traverse';
 import * as t from '@babel/types';
-import { last, isFalsyNode, takeProperty } from './misc';
+import { last, isFalsyNode, takeProperty } from './misc.js';
 
 export const COMMENT_DISPOSABLE_MARK = '#__DISPOSE__';
 export const COMMENT_DISPOSED_FUNCTION = '#__DISPOSED__FUNCTION__';

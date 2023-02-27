@@ -2,11 +2,11 @@
 import { transformSync } from '@babel/core';
 import constantFolding from 'babel-plugin-minify-constant-folding';
 import deadCode from 'babel-plugin-minify-dead-code-elimination';
-import { removePureCalls } from './transformers/removePureCalls';
-import { disposableObject } from './transformers/disposableObject';
-import { bakeObjectKeys } from './transformers/bakeObjectKeys';
-import { disposableFunction } from './transformers/disposableFunction';
-import { simplifyIIFE } from './transformers/simplifyIIFE';
+import { removePureCalls } from '../transformers/removePureCalls.js';
+import { disposableObject } from '../transformers/disposableObject.js';
+import { bakeObjectKeys } from '../transformers/bakeObjectKeys.js';
+import { disposableFunction } from '../transformers/disposableFunction.js';
+import { simplifyIIFE } from '../transformers/simplifyIIFE.js';
 
 export function gen(code) {
   const plugins = [

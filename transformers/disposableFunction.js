@@ -1,6 +1,6 @@
 import * as t from '@babel/types';
-import { COMMENT_DISPOSED_FUNCTION, isDisposableFunction } from './utils/disposable';
-import { isFalsyNode } from './utils/misc';
+import { COMMENT_DISPOSED_FUNCTION, isDisposableFunction } from './utils/disposable.js';
+import { isFalsyNode } from './utils/misc.js';
 
 /** @type {import('@babel/core').PluginItem} */
 export const disposableFunction = {

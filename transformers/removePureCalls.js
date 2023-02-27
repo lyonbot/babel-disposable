@@ -1,5 +1,5 @@
 import * as t from '@babel/types';
-import { isFalsyNode, last } from './utils/misc';
+import { isFalsyNode, last } from './utils/misc.js';
 
 const remove = path => {
   const comment = last(path.node.leadingComments);

@@ -1,11 +1,8 @@
-import Buffer from 'buffer';
-
-// @ts-ignore
-window.Buffer = Buffer;
-
 import { createApp } from 'vue';
-import './style.css';
 import App from './App.vue';
+import './style.css';
 
+const container = document.createElement('div');
+document.body.appendChild(container);
 
-createApp(App).mount('#app');
+createApp(App).mount(container);
