@@ -52,7 +52,7 @@ export default {
           'vue-style-loader',
           // MiniCssExtractPlugin.loader,
           'css-loader',
-          { loader: 'esbuild-loader', options: { minify: true } }
+          { loader: 'esbuild-loader', options: { loader: 'css', minify: true } }
         ]
       }
     ],

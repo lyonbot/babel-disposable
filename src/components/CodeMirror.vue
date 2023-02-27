@@ -1,5 +1,5 @@
 <template>
-  <div ref="domEl" style="text-align: left"></div>
+  <div ref="domEl" class="my-codemirror"></div>
 </template>
 
 <script setup>
@@ -37,3 +37,14 @@ onMounted(() => {
   });
 });
 </script>
+
+<style>
+.my-codemirror {
+  text-align: left;
+}
+
+.my-codemirror .CodeMirror {
+  width: 100%;
+  height: 80vh;
+}
+</style>

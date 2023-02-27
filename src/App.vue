@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import CodeMirror from './components/CodeMirror.vue';
 import { computed, ref, watch } from 'vue';
-import { gen } from './gen';
+import { gen } from './gen.js';
 
 let defaultCode = `
 const secretSchema = /* #__DISPOSE__ */ {
@@ -63,7 +63,23 @@ const reset = () => {
 </script>
 
 <template>
-  <CodeMirror v-model:code="code" />
-  <button @click="reset">reset</button>
-  <CodeMirror :code="minifiedCode" />
+  <div style="display: flex">
+    <div class="my-column">
+      <h2>Input</h2>
+      <CodeMirror v-model:code="code" />
+      <button @click="reset">reset</button>
+    </div>
+    <div class="my-column">
+      <h2>Output</h2>
+      <CodeMirror :code="minifiedCode" />
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.my-column {
+  min-width: 0;
+  flex: 1 0 0;
+  margin: 8px;
+}
+</style>

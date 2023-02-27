@@ -2,6 +2,10 @@
   "name": "babel-disposable",
   "version": "0.1.0",
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "author": {
     "name": "lyonbot",
     "url": "https://github.com/lyonbot/babel-disposable"
@@ -10,6 +14,9 @@
     "dev": "webpack serve",
     "build": "vue-tsc && webpack --mode production"
   },
+  "files": [
+    "transformers"
+  ],
   "dependencies": {
     "@babel/helper-module-imports": "^7.18.6",
     "@babel/types": "^7.21.2",

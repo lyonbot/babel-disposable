@@ -1,6 +1,6 @@
 # babel-disposable
 
-[ [GitHub](https://github.com/lyonbot/babel-disposable) | [Demo](https://lyonbot.github.io/babel-disposable) ]
+[ [GitHub](https://github.com/lyonbot/babel-disposable) | [Demo](https://lyonbot.github.io/babel-disposable) | [NPM](https://npmjs.org/babel-disposable) ]
 
 ## Concept
 
