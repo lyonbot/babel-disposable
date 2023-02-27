@@ -4,6 +4,8 @@
 
 ## Concept
 
+[👉 Here is a easy version introducing](./INTRODUCE.md)
+
 ### Disposable Values
 
 You can add `/*#__DISPOSE__*/` magical comment to any objects and arrays, to mark them as disposable.
