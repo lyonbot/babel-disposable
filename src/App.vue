@@ -51,7 +51,23 @@ function renderInput(type, props = {}) {
 `;
 
 let code = ref(localStorage.getItem('lastCode') || defaultCode);
-let minifiedCode = computed(() => gen(code.value) || '');
+let result = ref('');
+let error = ref<any>(null);
+
+watch(
+  code,
+  () => {
+    try {
+      result.value = gen(code.value) || '';
+      error.value = null;
+    } catch (err) {
+      error.value = err;
+      console.error(err);
+    }
+  },
+  { immediate: true },
+);
+
 watch(code, () => {
   localStorage.setItem('lastCode', code.value);
 });
@@ -63,6 +79,13 @@ const reset = () => {
 </script>
 
 <template>
+  <h1>babel-disposable</h1>
+  <p>
+    <a href="https://github.com/lyonbot/babel-disposable">GitHub</a> |
+    <a href="https://lyonbot.github.io/babel-disposable">Demo</a> |
+    <a href="https://npmjs.org/babel-disposable">NPM</a>
+  </p>
+
   <div style="display: flex">
     <div class="my-column">
       <h2>Input</h2>
@@ -71,12 +94,26 @@ const reset = () => {
     </div>
     <div class="my-column">
       <h2>Output</h2>
-      <CodeMirror :code="minifiedCode" />
+
+      <div class="error-mark" v-if="error">{{ String(error) }}</div>
+
+      <CodeMirror :code="result" />
     </div>
   </div>
 </template>
 
 <style scoped>
+.error-mark {
+  padding: 8px;
+  background: #fcc;
+  white-space: pre;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-family: monospace;
+  overflow: auto;
+  min-width: 0;
+}
+
 .my-column {
   min-width: 0;
   flex: 1 0 0;
